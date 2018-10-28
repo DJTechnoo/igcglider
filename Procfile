@@ -1,1 +1,1 @@
-web: igcforlife
+web: igcglider
