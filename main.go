@@ -15,7 +15,7 @@ import (
 )
 
 // general app constants
-const root = "/igcinfo"
+const root = "/paragliding"
 const idArg = 4    // URL index for ID
 const fieldArg = 5 // URL index for FIELD
 
