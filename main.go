@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"github.com/marni/goigc"
 	"encoding/json"
+	//"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
+	"time"
+	//"strconv"
 
 
 	//"github.com/gin-gonic/gin"
@@ -21,6 +25,20 @@ type Meta struct {
 	Info    string `json:"info"`
 	Version string `json:"version"`
 }
+
+
+
+type Fields struct {
+	Id bson.ObjectId 	`bson:"_id,omitempty"`
+	HDate    time.Time `json:"H_date"`
+	Pilot    string    `json:"pilot"`
+	Glider   string    `json:"glider"`
+	GliderID string    `json:"glider_id"`
+	TrackLen float64   `json:"track_lenght"`
+}
+
+
+
 
 
 func metaHandler(w http.ResponseWriter, r * http.Request){
@@ -39,13 +57,45 @@ func metaHandler(w http.ResponseWriter, r * http.Request){
 }
 
 
-func inputHandler(w http.ResponseWriter, r * http.Request){
-	fmt.Fprintln(w, "GET igc")
-	igcURL := "http://skypolaris.org/wp-content/uploads/IGS%20Files/Madrid%20to%20Jerez.igc"
-	track, _ := igc.ParseLocation(igcURL)
 
-	fmt.Fprintln(w, track.Pilot)
-	fmt.Fprintln(w, len(track.Pilot))
+
+func processURL(igcURL string, w http.ResponseWriter){
+
+	track, err := igc.ParseLocation(igcURL)
+	if err != nil {
+		status := 400
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+	
+	fields := Fields{
+				HDate: track.Date,
+				Pilot: track.Pilot,
+				Glider: track.GliderType,
+				GliderID: track.GliderID,
+				TrackLen: 0}
+				
+	fmt.Fprintln(w, fields)
+}
+
+
+
+
+
+
+func inputHandler(w http.ResponseWriter, r * http.Request){
+	switch r.Method {
+		case http.MethodGet:						
+			//json.NewEncoder(w).Encode()
+		case http.MethodPost:					
+			if err := r.ParseForm(); err != nil {
+				return
+			}
+
+			icgURL := r.FormValue("icg")	
+			processURL(string(icgURL), w)
+					
+	}
 }
 
 
