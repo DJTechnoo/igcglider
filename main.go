@@ -201,7 +201,7 @@ func inputHandler(w http.ResponseWriter, r * http.Request){
 				return
 			}
 
-			icgURL := r.FormValue("igc")	
+			icgURL := r.FormValue("url")	
 			fields, _ := processURL(string(icgURL), w)
 			addToDB(fields);
 					
@@ -278,6 +278,44 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func countHandler(w http.ResponseWriter, r * http.Request){
+	var docs int
+	session, err := mgo.Dial(Url)
+	if err != nil {
+		return 
+	}
+	
+	defer session.Close()
+	
+	docs, err = session.DB(Name).C(Collection).Count()
+	
+	if err != nil {
+		return 
+	}
+	
+	fmt.Fprintln(w, docs)
+}
+
+
+func deleteAll(w http.ResponseWriter, r * http.Request){
+
+	
+	if r.Method == http.MethodDelete {
+		session, err := mgo.Dial(Url)
+		if err != nil {
+			return 
+		}
+
+		defer session.Close()
+
+		_, err = session.DB(Name).C(Collection).RemoveAll(bson.M{})
+		if err != nil {
+			return 
+		}
+	}
+}
+
+
 
 func main() {
 	startTime = time.Now()
@@ -290,5 +328,7 @@ func main() {
 	http.HandleFunc(root + "/api", metaHandler)
 	http.HandleFunc(root + "/api/track", inputHandler)
 	http.HandleFunc(root + "/api/track/", argsHandler)
+	http.HandleFunc(root + "/admin/api/tracks_count", countHandler)
+	http.HandleFunc(root + "/admin/api/tracks", deleteAll)
 	http.ListenAndServe(":" +port, nil);
 }
