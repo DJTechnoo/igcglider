@@ -13,9 +13,6 @@ import (
 	"strings"
 	"strconv"
 
-
-	//"github.com/gin-gonic/gin"
-	//_ "github.com/heroku/x/hmetrics/onload"
 )
 
 const root = "/igcinfo"
@@ -25,6 +22,7 @@ const fieldArg = 5         // URL index for FIELD
 var	Url = "mongodb://igcuser:igc4life@ds141783.mlab.com:41783/igc"
 var	Name = "igc"
 var Collection = "igcstruct"
+var startTime time.Time
 
 
 type Meta struct {
@@ -71,13 +69,33 @@ func getIncrementedID()(int, error){
 }
 
 
+func calculateDuration(t time.Duration) string {
+	startNewTime := time.Now()
+	totalTime := int(startNewTime.Unix()) - int(startTime.Unix()) //int(t) / int(time.Second)
+
+	remainderSeconds := totalTime % 60 // final seconds
+	minutes := totalTime / 60
+	remainderMinutes := minutes % 60 // final minutes
+	hours := minutes / 60
+	remainderHours := hours % 24 // final hours
+	days := hours / 24
+	remainderDays := days % 7 // final days
+	months := days / 28
+	remainderMonths := months % 12 // final months
+	years := months / 12           // final years
+
+	s := "P" + strconv.Itoa(years) + "Y" + strconv.Itoa(remainderMonths) + "M" + strconv.Itoa(remainderDays) + "D" + strconv.Itoa(remainderHours) + "H" + strconv.Itoa(remainderMinutes) + "M" + strconv.Itoa(remainderSeconds) + "S"
+	return s
+}
+
+
 
 
 
 func metaHandler(w http.ResponseWriter, r * http.Request){
 	meta := Meta{
-	Uptime:  "time",//calculateDuration(time.Since(startTime)),
-	Info:    "Service for IGC tracks.",
+	Uptime:  calculateDuration(time.Since(startTime)),
+	Info:    "Service for Paragliding tracks.",
 	Version: "v1"}
 
 	m, err := json.MarshalIndent(&meta, "", "    ")
@@ -107,6 +125,10 @@ func processURL(igcURL string, w http.ResponseWriter)(Fields, error){
 		return fields, err
 	}
 	
+	totalDistance := 0.0
+	for i := 0; i < len(track.Points)-1; i++ {
+    	totalDistance += track.Points[i].Distance(track.Points[i+1])
+	}
 	
 	fields = Fields{
 				Id: bson.NewObjectId(),
@@ -115,7 +137,7 @@ func processURL(igcURL string, w http.ResponseWriter)(Fields, error){
 				Pilot: track.Pilot,
 				Glider: track.GliderType,
 				GliderID: track.GliderID,
-				TrackLen: 0,
+				TrackLen: totalDistance,
 				TrackURL: igcURL}
 				
 	response := ID{fields.TrackID}
@@ -258,6 +280,7 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func main() {
+	startTime = time.Now()
 	port := os.Getenv("PORT")
 
 	if port == "" {
