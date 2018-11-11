@@ -42,13 +42,17 @@ type igcFields struct {
 	Pilot    string        `json:"pilot"`
 	Glider   string        `json:"glider"`
 	GliderID string        `json:"glider_id"`
-	TrackLen float64       `json:"track_lenght"`
+	TrackLen float64       `json:"track_length"`
 	TrackURL string        `json:"track_src_url"`
 }
 
 // the response type for POST /igcinfo/api/track
 type resID struct {
 	TrackID int `json:"id"`
+}
+
+type trackURLRequest struct {
+	URL string `json:"url"`
 }
 
 // This function finds the amount of docs in db, uses it to return
@@ -142,6 +146,7 @@ func processURL(igcURL string, w http.ResponseWriter) (igcFields, error) {
 		TrackURL: igcURL}
 
 	// Response with ID as json and return the track
+	http.Header.Add(w.Header(), "content-type", "application/json")
 	response := resID{fields.TrackID}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "    ")
@@ -168,6 +173,7 @@ func addToDB(fields igcFields) {
 
 // List array of IDs in json
 func displayIDs(w http.ResponseWriter) {
+	http.Header.Add(w.Header(), "content-type", "application/json")
 	session, err := mgo.Dial(dbURL)
 	if err != nil {
 		panic(err)
@@ -198,12 +204,15 @@ func inputHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		displayIDs(w)
 	case http.MethodPost:
-		if err := r.ParseForm(); err != nil {
+		/*if err := r.ParseForm(); err != nil {
 			return
 		}
 
-		icgURL := r.FormValue("url")
-		fields, err := processURL(string(icgURL), w)
+		icgURL := r.FormValue("url")*/
+		http.Header.Add(w.Header(), "content-type", "application/json")
+		req := trackURLRequest{}
+		json.NewDecoder(r.Body).Decode(&req)
+		fields, err := processURL(string(req.URL), w)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
@@ -233,6 +242,7 @@ func getTrack(idOfTrack int) igcFields {
 //	In /igcinfo/api/track/ID/FIELD we use ID to find a track i db
 //	and FIELD to display that field
 func getField(fields igcFields, field string, w http.ResponseWriter) {
+	http.Header.Add(w.Header(), "content-type", "text/plain")
 	switch field {
 	case "pilot":
 		fmt.Fprintln(w, fields.Pilot)
@@ -268,7 +278,7 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(parts) > idArg {
-
+		http.Header.Add(w.Header(), "content-type", "application/json")
 		idOfTrack, _ := strconv.Atoi(parts[idArg])
 		fields = getTrack(idOfTrack)
 
