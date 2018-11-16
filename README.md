@@ -26,6 +26,11 @@ five ids, first of which being the oldest, and the last being the latest on that
 Navigate to `/paragliding/api/ticker/<timestamp>` to get up to five tracks that are
 later than provided timestamp.
 
+### Quality
+`go fmt` Done
+`golint` No complaints
+`gometalinter` No complaints
+`go vet` No complaints
 
 
 
