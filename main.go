@@ -18,7 +18,7 @@ import (
 const root = "/paragliding"
 const idArg = 4    // URL index for ID
 const fieldArg = 5 // URL index for FIELD
-const timelayout = "2006-01-02T15:04:05.000Z" 
+const timelayout = "2006-01-02T15:04:05.000Z"
 
 // db constants
 var dbURL = "mongodb://igcuser:igc4life@ds141783.mlab.com:41783/igc"
@@ -35,27 +35,25 @@ type meta struct {
 	Version string `json:"version"`
 }
 
-
 type ticker struct {
-	Latest time.Time `json:"t_latest"`
-	Start time.Time `json:"t_start"`
-	Stop  time.Time  `json:"t_stop"`
-	TrackIDs []int	 `json:"tracks"`
+	Latest      time.Time     `json:"t_latest"`
+	Start       time.Time     `json:"t_start"`
+	Stop        time.Time     `json:"t_stop"`
+	TrackIDs    []int         `json:"tracks"`
 	ProcessTime time.Duration `json:"processing"`
 }
 
-
 // holds data for /igcinfo/api/track/id
 type igcFields struct {
-	ID       bson.ObjectId `bson:"_id,omitempty" json:"-"`
-	TrackID  int           `bson:"id" json:"-"`
-	HDate    time.Time     `json:"H_date"`
-	Pilot    string        `json:"pilot"`
-	Glider   string        `json:"glider"`
-	GliderID string        `json:"glider_id"`
-	TrackLen float64       `json:"track_length"`
-	TrackURL string        `json:"track_src_url"`
-	Timestamp time.Time	   `bson:"timestamp" json:"timestamp"`
+	ID        bson.ObjectId `bson:"_id,omitempty" json:"-"`
+	TrackID   int           `bson:"id" json:"-"`
+	HDate     time.Time     `json:"H_date"`
+	Pilot     string        `json:"pilot"`
+	Glider    string        `json:"glider"`
+	GliderID  string        `json:"glider_id"`
+	TrackLen  float64       `json:"track_length"`
+	TrackURL  string        `json:"track_src_url"`
+	Timestamp time.Time     `bson:"timestamp" json:"-"`
 }
 
 // the response type for POST /igcinfo/api/track
@@ -79,10 +77,6 @@ func getIncrementedID() (int, error) {
 	defer session.Close()
 
 	uniqueID, err = session.DB(dbName).C(dbCollection).Count()
-
-	if err != nil {
-		return uniqueID, err
-	}
 
 	return uniqueID, err
 
@@ -121,8 +115,7 @@ func metaHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
-	
+
 }
 
 // After a POST, url is passed here to parse a track-object
@@ -147,29 +140,24 @@ func processURL(igcURL string, w http.ResponseWriter) (igcFields, error) {
 	for i := 0; i < len(track.Points)-1; i++ {
 		totalDistance += track.Points[i].Distance(track.Points[i+1])
 	}
-	
-	
 
 	fields = igcFields{
-		ID:       bson.NewObjectId(),
-		HDate:    track.Date,
-		TrackID:  uniqueID,
-		Pilot:    track.Pilot,
-		Glider:   track.GliderType,
-		GliderID: track.GliderID,
-		TrackLen: totalDistance,
-		TrackURL: igcURL,
+		ID:        bson.NewObjectId(),
+		HDate:     track.Date,
+		TrackID:   uniqueID,
+		Pilot:     track.Pilot,
+		Glider:    track.GliderType,
+		GliderID:  track.GliderID,
+		TrackLen:  totalDistance,
+		TrackURL:  igcURL,
 		Timestamp: time.Now()}
 
 	// Response with ID as json and return the track
 	http.Header.Add(w.Header(), "content-type", "application/json")
 	response := resID{fields.TrackID}
 	err = json.NewEncoder(w).Encode(&response)
-	if err != nil {
-		return fields, err
-	}
-	
-	return fields, nil
+
+	return fields, err
 }
 
 // Add a track to the DB
@@ -212,7 +200,12 @@ func displayIDs(w http.ResponseWriter) {
 		response = append(response, item.TrackID)
 	}
 
-	json.NewEncoder(w).Encode(&response)
+	err = json.NewEncoder(w).Encode(&response)
+	if err != nil {
+		status := 500
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
 
 }
 
@@ -229,8 +222,13 @@ func inputHandler(w http.ResponseWriter, r *http.Request) {
 		icgURL := r.FormValue("url")*/
 		http.Header.Add(w.Header(), "content-type", "application/json")
 		req := trackURLRequest{}
-		json.NewDecoder(r.Body).Decode(&req)
-		fields, err := processURL(string(req.URL), w)
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			status := 500
+			http.Error(w, http.StatusText(status), status)
+			return
+		}
+		fields, err := processURL(req.URL, w)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
@@ -252,11 +250,8 @@ func getTrack(idOfTrack int) (igcFields, error) {
 	response := igcFields{}
 
 	err = c.Find(bson.M{"id": idOfTrack}).One(&response)
-	if err != nil {
-		return response, err
-	}
 
-	return response, nil
+	return response, err
 
 }
 
@@ -306,7 +301,7 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(status), status)
 			return
 		}
-		
+
 		fields, err = getTrack(idOfTrack)
 		if err != nil {
 			status := 400
@@ -325,7 +320,7 @@ func argsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(parts) > fieldArg {
 
-		field := string(parts[fieldArg])
+		field := parts[fieldArg]
 		getField(fields, field, w)
 	}
 }
@@ -355,7 +350,7 @@ func countHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
+
 }
 
 // Deletes all documents in the DB collection
@@ -378,13 +373,11 @@ func deleteAll(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
-
 // GET api/ticker
-func tickerHandler(w http.ResponseWriter, r * http.Request){
+func tickerHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	t := ticker{}
-	
+
 	session, err := mgo.Dial(dbURL)
 	if err != nil {
 		panic(err)
@@ -400,8 +393,7 @@ func tickerHandler(w http.ResponseWriter, r * http.Request){
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
-	
+
 	latestID--
 	latestTrack, err := getTrack(latestID)
 	if err != nil {
@@ -409,34 +401,36 @@ func tickerHandler(w http.ResponseWriter, r * http.Request){
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
+
 	items := []igcFields{}
 
-	c.Find(bson.M{}).Sort("timestamp").Limit(5).All(&items)
+	err = c.Find(bson.M{}).Sort("timestamp").Limit(5).All(&items)
+	if err != nil {
+		status := 500
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+
 	tickerTrackIDs := make([]int, 0)
 	for i := 0; i < len(items); i++ {
 		tickerTrackIDs = append(tickerTrackIDs, items[i].TrackID)
 	}
-	
-	
-	
-	if len(tickerTrackIDs) <= 0 {	
+
+	if len(tickerTrackIDs) <= 0 {
 		status := 404
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
+
 	startTrack := 0
-	stopTrack := len(tickerTrackIDs)-1
-	
-	
-	
+	stopTrack := len(tickerTrackIDs) - 1
+
 	t.Latest = latestTrack.Timestamp
 	t.Start = items[startTrack].Timestamp
-	t.Stop  = items[stopTrack].Timestamp
+	t.Stop = items[stopTrack].Timestamp
 	t.TrackIDs = tickerTrackIDs
 	t.ProcessTime = time.Since(start)
-	
+
 	http.Header.Add(w.Header(), "content-type", "application/json")
 	err = json.NewEncoder(w).Encode(&t)
 	if err != nil {
@@ -444,28 +438,25 @@ func tickerHandler(w http.ResponseWriter, r * http.Request){
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
+
 }
 
-
-func tickerTimestampHandler(w http.ResponseWriter, r * http.Request){
+func tickerTimestampHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	
-	
+
 	parts := strings.Split(r.URL.Path, "/") // array of url parts
 	timeStampArg := parts[len(parts)-1]
 	argTime, err := time.Parse(timelayout, timeStampArg)
 
 	if err != nil {
-		
+
 		status := 400
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
-	
+
 	t := ticker{}
-	
+
 	session, err := mgo.Dial(dbURL)
 	if err != nil {
 		panic(err)
@@ -476,6 +467,12 @@ func tickerTimestampHandler(w http.ResponseWriter, r * http.Request){
 
 	c := session.DB(dbName).C(dbCollection)
 	latestID, err := session.DB(dbName).C(dbCollection).Count()
+	if err != nil {
+		status := 500
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+
 	latestID--
 	latestTrack, err := getTrack(latestID)
 	if err != nil {
@@ -483,44 +480,44 @@ func tickerTimestampHandler(w http.ResponseWriter, r * http.Request){
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-	
-	
+
 	fromDate := argTime
 	toDate := latestTrack.Timestamp
 
 	items := []igcFields{}
 	err = c.Find(
-    bson.M{
-        "timestamp": bson.M{
-            "$gt": fromDate,
-            "$lte": toDate,
-        },
-    }).Limit(5).All(&items)
-    
-    
-    tickerTrackIDs := make([]int, 0)
+		bson.M{
+			"timestamp": bson.M{
+				"$gt":  fromDate,
+				"$lte": toDate,
+			},
+		}).Limit(5).All(&items)
+	if err != nil {
+		status := 404
+		http.Error(w, http.StatusText(status), status)
+		return
+	}
+
+	tickerTrackIDs := make([]int, 0)
 	for i := 0; i < len(items); i++ {
 		tickerTrackIDs = append(tickerTrackIDs, items[i].TrackID)
 	}
-	
-	
-	
+
 	if len(tickerTrackIDs) <= 0 {
-		fmt.Fprintln(w, "tickerTrackIDs is empty")
-		return // bad request
+		status := 404
+		http.Error(w, http.StatusText(status), status)
+		return
 	}
-	
+
 	startTrack := 0
-	stopTrack := len(items)-1
-	
-	
-	
+	stopTrack := len(items) - 1
+
 	t.Latest = latestTrack.Timestamp
 	t.Start = items[startTrack].Timestamp
-	t.Stop  = items[stopTrack].Timestamp
+	t.Stop = items[stopTrack].Timestamp
 	t.TrackIDs = tickerTrackIDs
 	t.ProcessTime = time.Since(start)
-	
+
 	http.Header.Add(w.Header(), "content-type", "application/json")
 	err = json.NewEncoder(w).Encode(&t)
 	if err != nil {
@@ -528,12 +525,8 @@ func tickerTimestampHandler(w http.ResponseWriter, r * http.Request){
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
-    
+
 }
-
-
-
-
 
 // Main program
 func main() {
@@ -552,30 +545,5 @@ func main() {
 	http.HandleFunc(root+"/api/ticker", tickerHandler)
 	http.HandleFunc(root+"/api/ticker/", tickerTimestampHandler)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
-	
+
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
